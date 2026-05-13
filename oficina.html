@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Orçamentos Oficina</title>
+    <style>
+        :root {
+            --primary: #1e3d59;
+            --secondary: #17b978;
+            --bg: #f5f7fa;
+            --dark: #333;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: var(--bg); color: var(--dark); }
+        .container { max-width: 700px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        h2, h3 { color: var(--primary); margin-top: 0; border-bottom: 2px solid #e1e8ed; padding-bottom: 8px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 12px; background: #e1e8ed; border: none; font-weight: bold; cursor: pointer; border-radius: 6px; transition: 0.3s; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
+        .grid-pecas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+        .peca-item { background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e1e8ed; display: flex; align-items: center; gap: 8px; }
+        button.main-btn { width: 100%; padding: 14px; background: var(--secondary); color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button.main-btn:hover { background: #139e65; }
+        .btn-whatsapp { background: #25D366 !important; margin-top: 10px; }
+        .btn-whatsapp:hover { background: #20ba5a !important; }
+        .resultado, .historico-box { margin-top: 20px; padding: 15px; background: #e8f4f8; border-left: 5px solid var(--primary); border-radius: 4px; }
+        .config-list { margin-top: 15px; }
+        .config-row { display: flex; justify-content: space-between; background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 8px; align-items: center; border: 1px solid #e1e8ed; }
+        .btn-danger { background: #ff4d4d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .add-peca-form { display: flex; gap: 10px; margin-bottom: 20px; background: #edf2f7; padding: 15px; border-radius: 8px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="mudarAba('orcamento')">📝 Novo Orçamento</button>
+        <button class="tab-btn" onclick="mudarAba('config')">⚙️ Configurar Peças</button>
+        <button class="tab-btn" onclick="mudarAba('historico')">🗂️ Histórico</button>
+    </div>
+
+    <div id="aba-orcamento">
+        <h2>Criar Orçamento</h2>
+        <div class="form-group">
+            <label>Nome do Cliente:</label>
+            <input type="text" id="cliente" placeholder="Ex: João Silva">
+        </div>
+        <div class="form-group">
+            <label>Viatura (Marca/Modelo/Ano):</label>
+            <input type="text" id="carro" placeholder="Ex: Renault Clio 2019">
+        </div>
+        <div class="form-group">
+            <label>Tipo de Tinta / Acabamento:</label>
+            <select id="cor">
+                <option value="solida" data-extra="0">Sólida (Preço base)</option>
+                <option value="metalizada" data-extra="60">Metalizada (+60€)</option>
+                <option value="perola" data-extra="120">Pérola / Especial (+120€)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Tipo de Serviço:</label>
+            <select id="tipoServico" onchange="alternarPecas()">
+                <option value="parcial">Pintura de Peças / Reparação</option>
+                <option value="geral">Pintura Geral (Viatura Completa)</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="zona-pecas">
+            <label>Selecione as Peças a Reparar/Pintar:</label>
+            <div class="grid-pecas" id="lista-pecas-checkbox"></div>
+        </div>
+
+        <div class="form-group">
+            <label>Necessita de Bate-Chapas (Mossas)?</label>
+            <select id="mossas">
+                <option value="0">Não (Apenas Pintura)</option>
+                <option value="40">Mossas Leves (+40€)</option>
+                <option value="100">Mossas Médias (+100€)</option>
+                <option value="200">Danos Graves (+200€)</option>
+            </select>
+        </div>
+
+        <button class="main-btn" onclick="gerarOrcamento()">Calcular e Guardar</button>
+
+        <div id="resultado" class="resultado hidden">
+            <h3>Resumo Calculado</h3>
+            <div id="dados-resultado"></div>
+            <button class="main-btn btn-whatsapp" onclick="enviarWhatsApp()">📲 Enviar por WhatsApp</button>
+        </div>
+    </div>
+
+    <div id="aba-config" class="hidden">
+        <h2>Personalizar Peças e Valores</h2>
+        <p style="font-size: 13px; color: #666;">Adicione ou remova as peças da sua oficina. As alterações são gravadas instantaneamente.</p>
+        
+        <div class="add-peca-form">
+            <input type="text" id="nova-peca-nome" placeholder="Nome da Peça (Ex: Tejadilho)">
+            <input type="number" id="nova-peca-preco" placeholder="Preço (€)" style="width: 120px;">
+            <button class="main-btn" onclick="adicionarNovaPeca()" style="width: auto; padding: 10px 20px;">Adicionar</button>
+        </div>
+
+        <h3>Peças Cadastradas</h3>
+        <div class="config-list" id="lista-pecas-config"></div>
+    </div>
+
+    <div id="aba-historico" class="hidden">
+        <h2>Orçamentos Gravados</h2>
+        <div id="lista-historico">Não existem orçamentos guardados.</div>
+    </div>
+</div>
+
+<script>
+    // Peças iniciais padrão (caso o utilizador nunca tenha guardado nada)
+    const pecasPadrao = [
+        { nome: "Capô", preco: 130 },
+        { nome: "Parachoques Dianteiro", preco: 110 },
+        { nome: "Parachoques Traseiro", preco: 110 },
+        { nome: "Porta Dianteira Esq.", preco: 95 },
+        { nome: "Porta Dianteira Dir.", preco: 95 },
+        { nome: "Guarda-lamas Esq.", preco: 90 },
+        { nome: "Guarda-lamas Dir.", preco: 90 },
+        { nome: "Tejadilho", preco: 160 }
+    ];
+
+    let pecas = JSON.parse(localStorage.getItem("oficina_pecas")) || pecasPadrao;
+    let historico = JSON.parse(localStorage.getItem("oficina_historico")) || [];
+    let ultimoOrcamentoGerado = null;
+
+    function guardarDados() {
+        localStorage.setItem("oficina_pecas", JSON.stringify(pecas));
+        localStorage.setItem("oficina_historico", JSON.stringify(historico));
+    }
+
+    function mudarAba(aba) {
+        document.getElementById("aba-orcamento").classList.add("hidden");
+        document.getElementById("aba-config").classList.add("hidden");
+        document.getElementById("aba-historico").classList.add("hidden");
+        
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        
+        document.getElementById("aba-" + aba).classList.remove("hidden");
+        event.currentTarget.classList.add("active");
+
+        if(aba === 'orcamento') renderizarFormularioPecas();
+        if(aba === 'config') renderizarConfigPecas();
+        if(aba === 'historico') renderizarHistorico();
+    }
+
+    function renderizarFormularioPecas() {
+        const div = document.getElementById("lista-pecas-checkbox");
+        div.innerHTML = "";
+        pecas.forEach((p, idx) => {
+            div.innerHTML += `
+                <div class="peca-item">
+                    <input type="checkbox" class="chk-peca" value="${p.nome}" data-preco="${p.preco}">
+                    <span>${p.nome} (<strong style="color:var(--primary);">${p.preco}€</strong>)</span>
+                </div>
+            `;
+        });
+    }
+
+    function renderizarConfigPecas() {
+        const div = document.getElementById("lista-pecas-config");
+        div.innerHTML = "";
+        pecas.forEach((p, idx) => {
+            div.innerHTML += `
+                <div class="config-row">
+                    <span><strong>${p.nome}</strong> - ${p.preco}€</span>
+                    <button class="btn-danger" onclick="eliminarPeca(${idx})">Remover</button>
+                </div>
+            `;
+        });
+    }
+
+    function alternarPecas() {
+        let tipo = document.getElementById("tipoServico").value;
+        document.getElementById("zona-pecas").style.display = (tipo === "geral") ? "none" : "block";
+    }
+
+    function adicionarNovaPeca() {
+        let nome = document.getElementById("nova-peca-nome").value.trim();
+        let preco = parseFloat(document.getElementById("nova-peca-preco").value);
+
+        if(!nome || isNaN(preco)) {
+            alert("Por favor, preencha o nome da peça e o preço corretamente.");
+            return;
+        }
+
+        pecas.push({ nome: nome, preco: preco });
+        guardarDados();
+        renderizarConfigPecas();
+        
+        document.getElementById("nova-peca-nome").value = "";
+        document.getElementById("nova-peca-preco").value = "";
+    }
+
+    function eliminarPeca(index) {
+        if(confirm("Tem a certeza que deseja eliminar esta peça?")) {
+            pecas.splice(index, 1);
+            guardarDados();
+            renderizarConfigPecas();
+        }
+    }
+
+    function gerarOrcamento() {
+        let cliente = document.getElementById("cliente").value.trim() || "Cliente Geral";
+        let carro = document.getElementById("carro").value.trim() || "Viatura Não Especificada";
+        let corSelect = document.getElementById("cor");
+        let tipoServico = document.getElementById("tipoServico").value;
+        let valorBateChapas = parseFloat(document.getElementById("mossas").value);
+
+        let total = 0;
+        let detalhes = [];
+
+        if (tipoServico === "geral") {
+            total += 1200; // Valor base padrão para pintura geral completa
+            detalhes.push("Pintura Geral Completa (Preço Base: 1200€)");
+        } else {
+            let chks = document.querySelectorAll(".chk-peca:checked");
+            chks.forEach(c => {
+                let precoPeca = parseFloat(c.getAttribute("data-preco"));
+                total += precoPeca;
+                detalhes.push(`${c.value} (${precoPeca}€)`);
+            });
+        }
+
+        let extraCor = parseFloat(corSelect.options[corSelect.selectedIndex].getAttribute("data-extra"));
+        total += extraCor;
+        if(extraCor > 0) detalhes.push(`Extra Acabamento/Cor (+${extraCor}€)`);
+
+        total += valorBateChapas;
+        if(valorBateChapas > 0) detalhes.push(`Serviço de Bate-Chapas/Mossas (+${valorBateChapas}€)`);
+
+        if(total === 0 && tipoServico !== "geral") {
+            alert("Selecione pelo menos uma peça ou serviço!");
+            return;
+        }
+
+        ultimoOrcamentoGerado = {
+            data: new Date().toLocaleDateString('pt-PT'),
+            cliente: cliente,
+            carro: carro,
+            detalhes: detalhes.join(", "),
+            total: total
+        };
+
+        // Guardar no histórico
+        historico.unshift(ultimoOrcamentoGerado);
+        guardarDados();
+
+        // Mostrar Resultado no ecrã
+        document.getElementById("dados-resultado").innerHTML = `
+            <p><strong>Cliente:</strong> ${ultimoOrcamentoGerado.cliente}</p>
+            <p><strong>Viatura:</strong> ${ultimoOrcamentoGerado.carro}</p>
+            <p><strong>Trabalhos:</strong> ${ultimoOrcamentoGerado.detalhes}</p>
+            <h3 style="color: var(--secondary);">Total Estimado: ${total.toFixed(2)}€</h3>
+        `;
+        document.getElementById("resultado").classList.remove("hidden");
+    }
+
+    function enviarWhatsApp() {
+        if(!ultimoOrcamentoGerado) return;
+
+        let texto = `*ORÇAMENTO DE OFICINA*\n\n` +
+                    `*Data:* ${ultimoOrcamentoGerado.data}\n` +
+                    `*Cliente:* ${ultimoOrcamentoGerado.cliente}\n` +
+                    `*Viatura:* ${ultimoOrcamentoGerado.carro}\n` +
+                    `*Serviços:* ${ultimoOrcamentoGerado.detalhes}\n\n` +
+                    `*Total Estimado:* ${ultimoOrcamentoGerado.total.toFixed(2)}€\n\n` +
+                    `_Preço sujeito a revisão final após análise presencial._`;
+
+        let url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(texto);
+        window.open(url, '_blank');
+    }
+
+    function renderizarHistorico() {
+        const div = document.getElementById("lista-historico");
+        if(historico.length === 0) {
+            div.innerHTML = "Não existem orçamentos guardados.";
+            return;
+        }
+        div.innerHTML = "";
+        historico.forEach(h => {
+            div.innerHTML += `
+                <div class="historico-box">
+                    <strong>${h.data} - ${h.cliente}</strong><br>
+                    <small>Viatura: ${h.carro}</small><br>
+                    <small style="color:#555;">Serviços: ${h.detalhes}</small><br>
+                    <strong style="color:var(--primary)">Total: ${h.total.toFixed(2)}€</strong>
+                </div>
+            `;
+        });
+    }
+
+    // Inicialização
+    renderizarFormularioPecas();
+</script>
+
+</body>
+</html>
